@@ -15,7 +15,6 @@ export default function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-  const [isImageLoading, setIsImageLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const handleCapture = useCallback(async (base64: string) => {
@@ -23,7 +22,6 @@ export default function App() {
     setError(null);
     setResult(null);
     setGeneratedImage(null);
-    setIsImageLoading(true);
 
     try {
       // Step 1: Analyze personal color
@@ -52,7 +50,6 @@ export default function App() {
   const reset = () => {
     setResult(null);
     setGeneratedImage(null);
-    setIsImageLoading(true);
     setError(null);
   };
 
@@ -154,22 +151,19 @@ export default function App() {
                 </button>
 
                 <div className={`relative aspect-square rounded-[2rem] overflow-hidden glass border-black/5 glow-${result.type?.toLowerCase()}`}>
-                  {generatedImage && (
+                  {generatedImage ? (
                     <motion.img 
                       initial={{ opacity: 0 }}
-                      animate={{ opacity: isImageLoading ? 0 : 1 }}
+                      animate={{ opacity: 1 }}
                       src={generatedImage} 
                       alt="Personal Color Style"
                       className="w-full h-full object-cover"
                       referrerPolicy="no-referrer"
-                      onLoad={() => setIsImageLoading(false)}
                     />
-                  )}
-                  
-                  {(!generatedImage || isImageLoading) && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-white/5 backdrop-blur-sm">
-                      <div className="w-12 h-12 border-2 border-black/10 border-t-black rounded-full animate-spin" />
-                      <p className="text-xs font-mono uppercase tracking-widest text-black/40">스타일 포트레이트 생성 중...</p>
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+                      <div className="w-12 h-12 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      <p className="text-xs font-mono uppercase tracking-widest text-white/40">스타일 포트레이트 생성 중...</p>
                     </div>
                   )}
                   
