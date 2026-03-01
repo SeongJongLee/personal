@@ -1,0 +1,5 @@
+{
+  "name": "컬러뷰티",
+  "description": "Real-time AI-powered personal color analysis with intelligent light compensation.",
+  "requestFramePermissions": ["camera"]
+}
