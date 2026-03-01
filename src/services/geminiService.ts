@@ -34,7 +34,7 @@ export async function analyzePersonalColor(imageBase64: string): Promise<Analysi
     - bestColors: 구체적인 색상 명칭 3가지 (예: 카멜 베이지, 로얄 블루 등). (한국어)
     - worstColors: 피해야 할 색상 명칭 3가지. (한국어)
     - lightingCondition: 감지된 조명 상태 설명. (한국어)
-    - imagePrompt: 이 결과에 기반한 고품질 패션 화보 생성을 위한 영문 프롬프트.
+    - imagePrompt: 이 결과에 기반한 고품질 패션 화보 생성을 위한 영문 프롬프트. (예: "Spring warm type model wearing peach silk dress, soft golden hour lighting, blooming garden background")
 
     전문가적인 시각에서 매우 논리적이고 구체적으로 답변하세요.
   `;
@@ -77,26 +77,10 @@ export async function analyzePersonalColor(imageBase64: string): Promise<Analysi
 }
 
 export async function generateStylishImage(prompt: string): Promise<string> {
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
-    contents: {
-      parts: [
-        {
-          text: `A high-fashion, editorial portrait representing the following personal color season style: ${prompt}. The image should be artistic, sophisticated, and visually stunning.`,
-        },
-      ],
-    },
-    config: {
-      imageConfig: {
-        aspectRatio: "1:1",
-      },
-    },
-  });
-
-  for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData) {
-      return `data:image/png;base64,${part.inlineData.data}`;
-    }
-  }
-  return "";
+  // Use Pollinations.ai for image generation to avoid Gemini usage limits.
+  // This service is free and doesn't require an API key.
+  const encodedPrompt = encodeURIComponent(`high-fashion editorial portrait, ${prompt}, sophisticated, visually stunning, 8k resolution, professional photography`);
+  const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&seed=${Math.floor(Math.random() * 1000000)}`;
+  
+  return imageUrl;
 }
