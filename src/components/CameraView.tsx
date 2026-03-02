@@ -104,12 +104,19 @@ export const CameraView: React.FC<CameraViewProps> = ({ onCapture, isAnalyzing }
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      
+      // Resize to a reasonable size for analysis (e.g., max 800px width)
+      // This significantly reduces the payload size and speeds up the API request
+      const maxWidth = 800;
+      const scale = Math.min(1, maxWidth / video.videoWidth);
+      canvas.width = video.videoWidth * scale;
+      canvas.height = video.videoHeight * scale;
+      
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const base64 = canvas.toDataURL('image/jpeg', 0.8);
+        // Use a slightly lower quality for faster transmission
+        const base64 = canvas.toDataURL('image/jpeg', 0.7);
         onCapture(base64);
       }
     }

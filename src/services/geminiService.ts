@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { AnalysisResult } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -55,6 +55,7 @@ export async function analyzePersonalColor(imageBase64: string): Promise<Analysi
       },
     ],
     config: {
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
       responseMimeType: "application/json",
       responseSchema: {
         type: "OBJECT" as any,
@@ -77,26 +78,19 @@ export async function analyzePersonalColor(imageBase64: string): Promise<Analysi
 }
 
 export async function generateStylishImage(prompt: string): Promise<string> {
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
-    contents: {
-      parts: [
-        {
-          text: `A high-fashion, editorial portrait representing the following personal color season style: ${prompt}. The image should be artistic, sophisticated, and visually stunning.`,
-        },
-      ],
-    },
-    config: {
-      imageConfig: {
-        aspectRatio: "1:1",
-      },
-    },
-  });
+  // Refine prompt for high-fashion editorial style
+  const refinedPrompt = `high-fashion editorial portrait, ${prompt}, highly detailed, 8k, cinematic lighting, vogue style`;
+  
+  // URL encoding for the prompt
+  const encodedPrompt = encodeURIComponent(refinedPrompt);
+  
+  // Generate unique values to prevent caching and ensure fresh generation
+  const seed = Math.floor(Math.random() * 1000000);
+  const timestamp = Date.now();
 
-  for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData) {
-      return `data:image/png;base64,${part.inlineData.data}`;
-    }
-  }
-  return "";
+  // Return the Pollinations URL directly. 
+  // This avoids CORS issues and 530 errors by letting the browser's <img> tag handle the request.
+  const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&seed=${seed}&model=flux&t=${timestamp}`;
+
+  return imageUrl;
 }

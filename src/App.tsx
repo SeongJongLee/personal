@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Palette, Info, ArrowLeft, Download, Share2, CheckCircle2, AlertCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -11,11 +11,39 @@ import { CameraView } from './components/CameraView';
 import { analyzePersonalColor, generateStylishImage } from './services/geminiService';
 import { AnalysisResult } from './types';
 
+declare global {
+  interface Window {
+    aistudio: {
+      hasSelectedApiKey: () => Promise<boolean>;
+      openSelectKey: () => Promise<void>;
+    };
+  }
+}
+
 export default function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isFastMode, setIsFastMode] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkKey = async () => {
+      if (window.aistudio) {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        setHasApiKey(hasKey);
+      }
+    };
+    checkKey();
+  }, []);
+
+  const handleOpenKey = async () => {
+    if (window.aistudio) {
+      await window.aistudio.openSelectKey();
+      setHasApiKey(true);
+    }
+  };
 
   const handleCapture = useCallback(async (base64: string) => {
     setIsAnalyzing(true);
@@ -27,10 +55,21 @@ export default function App() {
       // Step 1: Analyze personal color
       const analysis = await analyzePersonalColor(base64);
       setResult(analysis);
-
+      
       // Step 2: Generate a stylish image matching the result
-      const imageUrl = await generateStylishImage(analysis.imagePrompt);
-      setGeneratedImage(imageUrl);
+      // Skip image generation in Fast Mode for even quicker results
+      if (!isFastMode) {
+        try {
+          const imageUrl = await generateStylishImage(analysis.imagePrompt);
+          setGeneratedImage(imageUrl);
+        } catch (err: any) {
+          console.error("Image generation failed:", err);
+          if (err.message?.includes("Requested entity was not found")) {
+            setHasApiKey(false);
+            setError("이미지 생성을 위해 API 키를 다시 연결해 주세요.");
+          }
+        }
+      }
 
       // Success effect
       confetti({
@@ -102,9 +141,36 @@ export default function App() {
 
               <CameraView onCapture={handleCapture} isAnalyzing={isAnalyzing} />
 
-              <div className="mt-6 flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-black/30">
-                <Info className="w-3 h-3" />
-                정확한 분석을 위해 자연광 아래에서 정면을 응시해 주세요.
+              <div className="mt-8 flex flex-col items-center gap-6">
+                {!hasApiKey && !isFastMode && (
+                  <button 
+                    onClick={handleOpenKey}
+                    className="px-6 py-3 bg-indigo-600 text-white rounded-full font-semibold hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg active:scale-95"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>고화질 이미지 생성을 위해 API 키 연결</span>
+                  </button>
+                )}
+
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setIsFastMode(!isFastMode)}
+                      className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${isFastMode ? 'bg-black' : 'bg-black/10'}`}
+                    >
+                      <motion.div 
+                        animate={{ x: isFastMode ? 24 : 4 }}
+                        className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm"
+                      />
+                    </button>
+                    <span className="text-xs font-mono uppercase tracking-widest text-black/60">Fast Mode</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-black/30">
+                    <Info className="w-3 h-3" />
+                    정확한 분석을 위해 자연광 아래에서 정면을 응시해 주세요.
+                  </div>
+                </div>
               </div>
 
               {error && (
@@ -160,6 +226,26 @@ export default function App() {
                       className="w-full h-full object-cover"
                       referrerPolicy="no-referrer"
                     />
+                  ) : isFastMode ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center">
+                      <div className="w-full h-full rounded-2xl flex flex-wrap gap-2 p-4">
+                        {result.palette.map((color, i) => (
+                          <motion.div 
+                            key={i}
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: i * 0.05 }}
+                            className="flex-1 min-w-[40%] rounded-xl shadow-inner"
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </div>
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="bg-white/80 backdrop-blur-md px-6 py-3 rounded-full border border-black/5 shadow-xl">
+                          <span className="text-xl font-serif italic text-black">{SEASON_MAP[result.type || '']}</span>
+                        </div>
+                      </div>
+                    </div>
                   ) : (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
                       <div className="w-12 h-12 border-2 border-white/20 border-t-white rounded-full animate-spin" />
@@ -169,7 +255,9 @@ export default function App() {
                   
                   <div className="absolute top-8 left-8">
                     <div className="px-4 py-2 bg-white/60 backdrop-blur-xl rounded-full border border-black/5">
-                      <span className="text-xs font-mono uppercase tracking-[0.2em] text-black">AI 포트레이트</span>
+                      <span className="text-xs font-mono uppercase tracking-[0.2em] text-black">
+                        {isFastMode ? '컬러 팔레트' : 'AI 포트레이트'}
+                      </span>
                     </div>
                   </div>
                 </div>
